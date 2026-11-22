@@ -11,14 +11,14 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **The Artists home grid is Live Music Archive bands only.** Tapers Section artists only appear when you search for them.
 - [ ] **Switching versions stacks screens.** Recording → versions → recording; Back walks through each one instead of swapping in place.
 - [ ] **"Highest rated" falls back to most played** when nobody has rated a tape, which is most tapes outside the big bands.
+- [ ] **Updater checks only when Home opens**, and asks GitHub directly (60 checks an hour per network, plenty for one TV).
+- [ ] **TaperTV lettering is Abril Fatface**, the closest face in the 13pts design system, not the hand-drawn letterforms from the original lockup.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.
 - [ ] **Year list is first-year-to-last-year**, so a band with a hiatus shows empty years.
 - [ ] **Search field + D-pad** can be clumsy getting out of the on-screen keyboard.
 - [ ] **Signing key is checked into the repo** (sideload-only debug key). Replace before any store release.
-- [ ] **Icon/banner are the full retro lockup**, including "Consulting", scaled down. Wants a purpose-drawn Taper TV mark.
-- [ ] **APK delivery**: private-repo release links need a GitHub login, so the TV can't pull the APK directly.
 - [ ] **No resume**: closing the app forgets the queue position.
 
 — Vega

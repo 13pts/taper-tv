@@ -95,7 +95,7 @@ private fun ScreenHost(screen: Screen, nav: Nav, player: PlayerConnection) {
         Screen.Search -> SearchScreen(nav)
         Screen.OnThisDay -> OnThisDayScreen(nav)
         Screen.Favorites -> FavoritesScreen(nav)
-        Screen.NowPlaying -> NowPlayingScreen(player)
+        Screen.NowPlaying -> NowPlayingScreen(player, nav)
         is Screen.ArtistYears -> ArtistYearsScreen(screen.artist, nav)
         is Screen.Year -> YearScreen(screen.artist, screen.year, nav)
         is Screen.ShowSources -> ShowSourcesScreen(screen.artistName, screen.show, nav)

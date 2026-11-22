@@ -43,6 +43,11 @@ class PlayerConnection(private val context: Context) {
     var error by mutableStateOf<String?>(null)
         private set
 
+    /** Track titles of whatever is queued, read back from the player so it survives an app restart. */
+    var queue by mutableStateOf<List<String>>(emptyList())
+        private set
+    private var queueFor: String? = null
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = sync()
         override fun onPlayerError(e: androidx.media3.common.PlaybackException) {
@@ -84,6 +89,10 @@ class PlayerConnection(private val context: Context) {
             .filter { it.isNotBlank() }.joinToString(" · ")
         recordingId = c.currentMediaItem?.mediaMetadata?.extras?.getString("recordingId") ?: recordingId
         if (!hasMedia) recordingId = null
+        if (queue.size != c.mediaItemCount || queueFor != recordingId) {
+            queue = (0 until c.mediaItemCount).map { c.getMediaItemAt(it).mediaMetadata.title?.toString().orEmpty() }
+            queueFor = recordingId
+        }
         tick()
         if (c.isPlaying) error = null
     }
@@ -129,6 +138,13 @@ class PlayerConnection(private val context: Context) {
     fun toggle() {
         val c = controller ?: return
         if (c.isPlaying) c.pause() else c.play()
+    }
+
+    fun jumpTo(index: Int) {
+        val c = controller ?: return
+        if (index !in 0 until c.mediaItemCount) return
+        c.seekTo(index, 0L)
+        c.play()
     }
 
     fun next() { controller?.seekToNextMediaItem() }

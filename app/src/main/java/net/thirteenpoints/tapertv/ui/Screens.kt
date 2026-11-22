@@ -107,7 +107,7 @@ fun ArtistGrid(artists: List<Artist>, nav: Nav, focusFirst: Boolean) {
                     Label(a.name, size = 16, bold = true, color = if (focused) Palette.Ink else Palette.Text)
                     Label(
                         when {
-                            a.id.startsWith(Archive.CREATOR_PREFIX) -> "${a.count} in the Tapers Section"
+                            a.id.startsWith(Archive.CREATOR_PREFIX) -> "${a.count} community tapes"
                             a.count > 0 -> "${a.count} recordings"
                             else -> "Live recordings"
                         },

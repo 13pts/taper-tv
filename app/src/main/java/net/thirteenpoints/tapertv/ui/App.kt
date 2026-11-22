@@ -28,7 +28,8 @@ sealed interface Screen {
     data class ArtistYears(val artist: Artist) : Screen
     data class Year(val artist: Artist, val year: Int) : Screen
     data class ShowSources(val artistName: String, val show: Show) : Screen
-    data class RecordingPage(val rec: Recording) : Screen
+    /** [versions] holds every tape of the same show, so the page can offer a switch. */
+    data class RecordingPage(val rec: Recording, val versions: List<Recording> = emptyList()) : Screen
     data class Taper(val name: String) : Screen
 }
 
@@ -98,7 +99,7 @@ private fun ScreenHost(screen: Screen, nav: Nav, player: PlayerConnection) {
         is Screen.ArtistYears -> ArtistYearsScreen(screen.artist, nav)
         is Screen.Year -> YearScreen(screen.artist, screen.year, nav)
         is Screen.ShowSources -> ShowSourcesScreen(screen.artistName, screen.show, nav)
-        is Screen.RecordingPage -> RecordingScreen(screen.rec, nav, player)
+        is Screen.RecordingPage -> RecordingScreen(screen.rec, screen.versions, nav, player)
         is Screen.Taper -> TaperScreen(screen.name, nav)
     }
 }

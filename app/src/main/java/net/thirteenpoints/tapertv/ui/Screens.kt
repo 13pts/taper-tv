@@ -90,7 +90,11 @@ fun ArtistGrid(artists: List<Artist>, nav: Nav, focusFirst: Boolean) {
                 Column {
                     Label(a.name, size = 16, bold = true, color = if (focused) Palette.Ink else Palette.Text)
                     Label(
-                        if (a.count > 0) "${a.count} recordings" else "Live recordings",
+                        when {
+                            a.id.startsWith(Archive.CREATOR_PREFIX) -> "${a.count} in the Tapers Section"
+                            a.count > 0 -> "${a.count} recordings"
+                            else -> "Live recordings"
+                        },
                         size = 12, color = if (focused) Palette.Ink else Palette.Dim,
                     )
                 }
@@ -108,7 +112,7 @@ fun ArtistsScreen(nav: Nav) {
     }
     Column {
         ScreenTitle("Artists", if (query.isBlank()) "Most-played bands first" else "Bands matching \"$query\"")
-        SearchField(text, { text = it }, "Find a band")
+        SearchField(text, { text = it }, "Find a band or artist")
         LoadBox(load) { list ->
             if (list.isEmpty()) Label("No bands found.", color = Palette.Dim)
             else ArtistGrid(list, nav, focusFirst = query.isBlank())
@@ -160,11 +164,8 @@ fun YearScreen(artist: Artist, year: Int, nav: Nav) {
                     RowItem(
                         title = show.date.ifBlank { "Undated" },
                         subtitle = show.place,
-                        trailing = if (n == 1) "1 source" else "$n sources",
-                        onClick = {
-                            if (n == 1) nav.go(Screen.RecordingPage(show.sources[0]))
-                            else nav.go(Screen.ShowSources(artist.name, show))
-                        },
+                        trailing = if (n == 1) "1 version" else "$n versions",
+                        onClick = { nav.go(Screen.RecordingPage(bestOf(show.sources), show.sources)) },
                         requestFocus = i == 0,
                     )
                 }
@@ -195,7 +196,7 @@ fun ShowSourcesScreen(artistName: String, show: Show, nav: Nav) {
         }
     }
     Column {
-        ScreenTitle("$artistName · ${show.date}", show.place)
+        ScreenTitle("$artistName · ${show.date}", listOf(show.place, "Pick a version").filter { it.isNotBlank() }.joinToString(" · "))
         Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = gap) {
             SourceSort.values().forEach { s ->
                 Chip(s.label, onClick = { sortName = s.name }, selected = s == sort)
@@ -207,7 +208,7 @@ fun ShowSourcesScreen(artistName: String, show: Show, nav: Nav) {
                     title = rec.taper.ifBlank { "Unknown taper" },
                     subtitle = rec.source.ifBlank { rec.id },
                     trailing = stats(rec),
-                    onClick = { nav.go(Screen.RecordingPage(rec)) },
+                    onClick = { nav.go(Screen.RecordingPage(rec, show.sources)) },
                     requestFocus = i == 0,
                 )
             }
@@ -218,7 +219,7 @@ fun ShowSourcesScreen(artistName: String, show: Show, nav: Nav) {
 // ---- One recording ---------------------------------------------------------------------
 
 @Composable
-fun RecordingScreen(rec: Recording, nav: Nav, player: PlayerConnection) {
+fun RecordingScreen(rec: Recording, versions: List<Recording>, nav: Nav, player: PlayerConnection) {
     val load = rememberLoad(rec.id) { Archive.detail(rec.id) }
     val fav = Favorites.hasRecording(rec.id)
     LoadBox(load) { detail ->
@@ -230,6 +231,18 @@ fun RecordingScreen(rec: Recording, nav: Nav, player: PlayerConnection) {
                 Label(listOf(r.date, r.place).filter { it.isNotBlank() }.joinToString(" · "), size = 15, maxLines = 2)
                 if (stats(rec).isNotBlank()) Label(stats(rec), size = 13, color = Palette.Gold)
                 Chip("▶ Play show", onClick = { player.play(detail, 0) }, requestFocus = true)
+                if (versions.size > 1) {
+                    val isBest = bestOf(versions).id == rec.id
+                    Chip(
+                        (if (isBest) "Top-rated of " else "One of ") + "${versions.size} versions · switch",
+                        onClick = {
+                            nav.go(Screen.ShowSources(
+                                r.artist.ifBlank { rec.artist },
+                                Show(r.date.ifBlank { rec.date }, r.place.ifBlank { rec.place }, versions),
+                            ))
+                        },
+                    )
+                }
                 Chip(if (fav) "★ Saved show" else "☆ Save show", onClick = { Favorites.toggle(rec.copy(taper = r.taper.ifBlank { rec.taper })) }, selected = fav)
                 // A recording can credit several tapers; link each one.
                 r.taper.split(",", ";", "&", " and ").map { it.trim() }.filter { it.length > 1 }.distinct().take(3)
@@ -282,12 +295,11 @@ fun TaperScreen(name: String, nav: Nav) {
             if (sorted.isEmpty()) Label("No recordings credited to that name.", color = Palette.Dim)
             else {
                 val bands = sorted.map { it.artist }.distinct().size
-                Label("${sorted.size} recordings · $bands bands", size = 13, color = Palette.Dim,
-                    modifier = Modifier.padding(bottom = 8.dp))
+                val groups = remember(sorted) { groupByShow(sorted) }
+                Label("${groups.size} shows · ${sorted.size} recordings · $bands bands", size = 13,
+                    color = Palette.Dim, modifier = Modifier.padding(bottom = 8.dp))
                 LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
-                    itemsIndexed(sorted) { i, rec ->
-                        RecordingRow(rec, onClick = { nav.go(Screen.RecordingPage(rec)) }, requestFocus = i == 0)
-                    }
+                    itemsIndexed(groups) { i, group -> ShowGroupRow(group, nav, requestFocus = i == 0) }
                 }
             }
         }
@@ -344,9 +356,7 @@ fun SearchScreen(nav: Nav) {
                     itemsIndexed(artists) { _, a ->
                         RowItem(a.name, onClick = { nav.go(Screen.ArtistYears(a)) }, trailing = "Band")
                     }
-                    itemsIndexed(recs) { _, rec ->
-                        RecordingRow(rec, onClick = { nav.go(Screen.RecordingPage(rec)) })
-                    }
+                    itemsIndexed(groupByShow(recs)) { _, group -> ShowGroupRow(group, nav) }
                 }
             }
         }
@@ -361,9 +371,7 @@ fun OnThisDayScreen(nav: Nav) {
         LoadBox(load) { recs ->
             if (recs.isEmpty()) Label("Nothing in the archive for today's date.", color = Palette.Dim)
             else LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
-                itemsIndexed(recs) { i, rec ->
-                    RecordingRow(rec, onClick = { nav.go(Screen.RecordingPage(rec)) }, requestFocus = i == 0)
-                }
+                itemsIndexed(groupByShow(recs)) { i, group -> ShowGroupRow(group, nav, requestFocus = i == 0) }
             }
         }
     }

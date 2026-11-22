@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import net.thirteenpoints.tapertv.R
@@ -22,6 +23,8 @@ import net.thirteenpoints.tapertv.data.Artist
 import net.thirteenpoints.tapertv.data.Favorites
 import net.thirteenpoints.tapertv.data.Recording
 import net.thirteenpoints.tapertv.data.Show
+import net.thirteenpoints.tapertv.data.Updater
+import kotlinx.coroutines.launch
 import net.thirteenpoints.tapertv.playback.PlayerConnection
 
 private val gap = Arrangement.spacedBy(10.dp)
@@ -37,6 +40,9 @@ fun HomeScreen(nav: Nav) {
         Triple("On This Day", "Shows played on today's date", Screen.OnThisDay),
         Triple("Favorites", "Your bands, tapers and shows", Screen.Favorites),
     )
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { Updater.check(context) }
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 18.dp)) {
             Image(
@@ -46,8 +52,18 @@ fun HomeScreen(nav: Nav) {
             )
             Spacer(Modifier.width(16.dp))
             Column {
-                Label("Taper TV", size = 30, bold = true)
-                Label("The Internet Archive's Live Music Archive", size = 14, color = Palette.Dim)
+                Label("TaperTV", size = 30, bold = true)
+                Label("The Internet Archive's Live Music Archive · build ${Updater.currentBuild(context)}",
+                    size = 14, color = Palette.Dim)
+            }
+        }
+        Updater.available?.let { update ->
+            Row(Modifier.padding(bottom = 14.dp)) {
+                Chip(
+                    Updater.status.ifBlank { "Update ready: build ${update.build} · install now" },
+                    onClick = { if (!Updater.busy) scope.launch { Updater.downloadAndInstall(context, update) } },
+                    selected = true,
+                )
             }
         }
         LazyVerticalGrid(

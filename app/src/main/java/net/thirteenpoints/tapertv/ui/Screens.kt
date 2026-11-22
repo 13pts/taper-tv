@@ -23,6 +23,7 @@ import net.thirteenpoints.tapertv.data.Artist
 import net.thirteenpoints.tapertv.data.Favorites
 import net.thirteenpoints.tapertv.data.Recording
 import net.thirteenpoints.tapertv.data.Show
+import net.thirteenpoints.tapertv.data.TileExport
 import net.thirteenpoints.tapertv.data.Updater
 import kotlinx.coroutines.launch
 import net.thirteenpoints.tapertv.playback.PlayerConnection
@@ -43,6 +44,7 @@ fun HomeScreen(nav: Nav) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { Updater.check(context) }
+    var tileStatus by remember { mutableStateOf("") }
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 18.dp)) {
             Image(
@@ -83,6 +85,18 @@ fun HomeScreen(nav: Nav) {
                     }
                 }
             }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Chip(
+                "Save launcher tile to Pictures",
+                onClick = { tileStatus = TileExport.save(context) },
+            )
+            Spacer(Modifier.width(14.dp))
+            Label(
+                tileStatus.ifBlank { "For custom launchers: a transparent tile image you can set as this app's icon." },
+                size = 13, color = Palette.Dim, maxLines = 2,
+            )
         }
     }
 }

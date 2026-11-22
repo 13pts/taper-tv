@@ -216,6 +216,38 @@ fun RecordingRow(rec: Recording, onClick: () -> Unit, requestFocus: Boolean = fa
     )
 }
 
+/** Every tape of one night by one artist, with the one we'd play by default. */
+data class ShowGroup(val best: Recording, val versions: List<Recording>)
+
+/** Highest rated wins; unrated tapes fall back to most played. */
+fun bestOf(versions: List<Recording>): Recording =
+    versions.sortedWith(compareByDescending<Recording> { it.rating }.thenByDescending { it.downloads }).first()
+
+/** Collapses a flat list of recordings into one entry per show, keeping the list's order. */
+fun groupByShow(recs: List<Recording>): List<ShowGroup> =
+    recs.groupBy { if (it.date.isBlank()) it.id else it.artist.lowercase() + "|" + it.date }
+        .values.map { ShowGroup(bestOf(it), it) }
+
+@Composable
+fun ShowGroupRow(group: ShowGroup, nav: Nav, requestFocus: Boolean = false) {
+    val rec = group.best
+    val n = group.versions.size
+    val tapers = group.versions.map { it.taper }.filter { it.isNotBlank() }.distinct()
+    val taperText = when {
+        tapers.isEmpty() -> ""
+        tapers.size == 1 -> "Taper: ${tapers[0]}"
+        else -> "${tapers.size} tapers"
+    }
+    RowItem(
+        title = listOf(rec.artist, rec.date).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { rec.title },
+        subtitle = listOf(group.versions.firstOrNull { it.place.isNotBlank() }?.place.orEmpty(), taperText)
+            .filter { it.isNotBlank() }.joinToString("  —  "),
+        trailing = listOf(if (n > 1) "$n versions" else "", stats(rec)).filter { it.isNotBlank() }.joinToString(" · "),
+        onClick = { nav.go(Screen.RecordingPage(rec, group.versions)) },
+        requestFocus = requestFocus,
+    )
+}
+
 fun taperLine(rec: Recording): String = if (rec.taper.isBlank()) "" else "Taper: ${rec.taper}"
 
 fun stats(rec: Recording): String {

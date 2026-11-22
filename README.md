@@ -45,7 +45,7 @@ Kotlin, Jetpack Compose, Media3. Networking is `HttpURLConnection` + `org.json` 
 | `app/src/main/java/.../data/Favorites.kt` | on-device favorites |
 | `app/src/main/java/.../playback/` | Media3 service and the UI's handle on it |
 | `app/src/main/java/.../ui/` | screens, navigation, shared components |
-| `brand/` | TaperTV logo (13pts retro bolt and rings, relettered) and its sources |
+| `brand/` | TaperTV cassette logo: Illustrator SVG source and a transparent PNG |
 | `docs/tighten-up.md` | shortcuts taken to ship v1, to do properly later |
 
 — Vega

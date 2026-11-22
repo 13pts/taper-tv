@@ -12,7 +12,7 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Switching versions stacks screens.** Recording → versions → recording; Back walks through each one instead of swapping in place.
 - [ ] **"Highest rated" falls back to most played** when nobody has rated a tape, which is most tapes outside the big bands.
 - [ ] **Updater checks only when Home opens**, and asks GitHub directly (60 checks an hour per network, plenty for one TV).
-- [ ] **TaperTV lettering is Abril Fatface**, the closest face in the 13pts design system, not the hand-drawn letterforms from the original lockup.
+- [ ] **The cassette logo sits on a cream tile.** It is black-bodied, so it disappears on the app's dark background without one. A light-outline variant would let it sit directly on dark.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.

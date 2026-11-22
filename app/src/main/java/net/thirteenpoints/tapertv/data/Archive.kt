@@ -55,10 +55,14 @@ object Archive {
     private const val UA = "TaperTV/0.1 (Android TV; https://github.com/13pts/taper-tv)"
     private const val REC_FIELDS =
         "identifier,title,creator,date,year,venue,coverage,taper,source,avg_rating,downloads"
-    // Two homes for taped shows: the Live Music Archive (etree), where each opted-in band has its own
-    // collection, and the Tapers Section, where everything else taped lands under the artist's name.
+    // Three homes for taped shows. The Live Music Archive (etree) gives each opted-in band its own
+    // collection. The Tapers Section and Community Audio hold everything else, filed under the
+    // artist's name. Community Audio also holds podcasts and the like, so it is only ever searched
+    // by artist name or taper name, never browsed wholesale.
     private const val LIVE = "collection:(etree OR taperssection) AND mediatype:(etree OR audio)"
-    private const val TAPERS_SECTION = "collection:taperssection AND mediatype:audio"
+    private const val ANY_TAPE =
+        "collection:(etree OR taperssection OR opensource_audio) AND mediatype:(etree OR audio)"
+    private const val TAPERS_SECTION = "collection:(taperssection OR opensource_audio) AND mediatype:audio"
     const val CREATOR_PREFIX = "creator:"
 
     /** The query that scopes to one artist, whichever home their tapes live in. */
@@ -158,7 +162,7 @@ object Archive {
             "identifier,title,item_count", "downloads desc", 60,
         ).map(::toArtist).filter { it.id.isNotBlank() }
         // Artists with no Live Music Archive collection of their own (John Scofield, say) only
-        // exist as a name on Tapers Section recordings, so tally those names too.
+        // exist as a name on Tapers Section and Community Audio recordings, so tally those too.
         val known = bands.map { it.name.lowercase() }.toSet()
         val others = search("$TAPERS_SECTION AND creator:($w)", "creator", "downloads desc", 1000)
             .map { it.str("creator") }
@@ -199,7 +203,7 @@ object Archive {
     // ---- Tapers --------------------------------------------------------------------------
 
     fun byTaper(name: String): List<Recording> =
-        search("$LIVE AND taper:${phrase(name)}", REC_FIELDS, "date desc", 1000)
+        search("$ANY_TAPE AND taper:${phrase(name)}", REC_FIELDS, "date desc", 1000)
             .map(::toRecording).filter { it.id.isNotBlank() }
 
     /** There is no taper index to browse, so we search recordings and tally the taper names on them. */
@@ -207,7 +211,7 @@ object Archive {
         val w = words(text)
         if (w.isBlank()) return emptyList()
         val needle = clean(text).lowercase().split(" ")
-        return search("$LIVE AND taper:($w)", "taper", "downloads desc", 2000)
+        return search("$ANY_TAPE AND taper:($w)", "taper", "downloads desc", 2000)
             .flatMap { it.strAll("taper") }
             .filter { name -> needle.all { it in name.lowercase() } }
             .groupingBy { it }.eachCount()
@@ -220,8 +224,13 @@ object Archive {
     fun searchRecordings(text: String): List<Recording> {
         val w = words(text)
         if (w.isBlank()) return emptyList()
-        return search("$LIVE AND ($w)", REC_FIELDS, "downloads desc", 150)
-            .map(::toRecording).filter { it.id.isNotBlank() }
+        // Shows BY the artist come first, newest first. Without this, a search for a sideman
+        // is buried under the famous bands he sat in with.
+        val byArtist = search("$ANY_TAPE AND creator:($w)", REC_FIELDS, "date desc", 200)
+        val mentions = search("$LIVE AND ($w)", REC_FIELDS, "downloads desc", 150)
+        return (byArtist + mentions).map(::toRecording)
+            .filter { it.id.isNotBlank() }
+            .distinctBy { it.id }
     }
 
     fun onThisDay(): List<Recording> {

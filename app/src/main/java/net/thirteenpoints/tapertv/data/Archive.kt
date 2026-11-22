@@ -55,7 +55,19 @@ object Archive {
     private const val UA = "TaperTV/0.1 (Android TV; https://github.com/13pts/taper-tv)"
     private const val REC_FIELDS =
         "identifier,title,creator,date,year,venue,coverage,taper,source,avg_rating,downloads"
-    private const val LIVE = "collection:etree AND mediatype:etree"
+    // Two homes for taped shows: the Live Music Archive (etree), where each opted-in band has its own
+    // collection, and the Tapers Section, where everything else taped lands under the artist's name.
+    private const val LIVE = "collection:(etree OR taperssection) AND mediatype:(etree OR audio)"
+    private const val TAPERS_SECTION = "collection:taperssection AND mediatype:audio"
+    const val CREATOR_PREFIX = "creator:"
+
+    /** The query that scopes to one artist, whichever home their tapes live in. */
+    private fun artistScope(artistId: String): String =
+        if (artistId.startsWith(CREATOR_PREFIX)) {
+            "creator:${phrase(artistId.removePrefix(CREATOR_PREFIX))} AND $TAPERS_SECTION"
+        } else {
+            "collection:$artistId AND mediatype:etree"
+        }
 
     private val cache = object : LinkedHashMap<String, String>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 60
@@ -141,10 +153,20 @@ object Archive {
     fun searchArtists(text: String): List<Artist> {
         val w = words(text)
         if (w.isBlank()) return emptyList()
-        return search(
+        val bands = search(
             "mediatype:collection AND collection:etree AND title:($w)",
             "identifier,title,item_count", "downloads desc", 60,
         ).map(::toArtist).filter { it.id.isNotBlank() }
+        // Artists with no Live Music Archive collection of their own (John Scofield, say) only
+        // exist as a name on Tapers Section recordings, so tally those names too.
+        val known = bands.map { it.name.lowercase() }.toSet()
+        val others = search("$TAPERS_SECTION AND creator:($w)", "creator", "downloads desc", 1000)
+            .map { it.str("creator") }
+            .filter { it.isNotBlank() && it.lowercase() !in known }
+            .groupingBy { it }.eachCount()
+            .map { Artist(CREATOR_PREFIX + it.key, it.key, it.value) }
+            .sortedByDescending { it.count }
+        return bands + others
     }
 
     private fun toArtist(d: JSONObject) = Artist(
@@ -155,7 +177,7 @@ object Archive {
 
     /** Years an artist has recordings for, newest first. Two tiny queries instead of paging everything. */
     fun artistYears(artistId: String): List<Int> {
-        val q = "collection:$artistId AND mediatype:etree AND year:[1900 TO 2100]"
+        val q = "${artistScope(artistId)} AND year:[1900 TO 2100]"
         val first = search(q, "year", "year asc", 1).firstOrNull()?.str("year")?.toDoubleOrNull()?.toInt()
         val last = search(q, "year", "year desc", 1).firstOrNull()?.str("year")?.toDoubleOrNull()?.toInt()
         if (first == null || last == null) return emptyList()
@@ -163,7 +185,7 @@ object Archive {
     }
 
     fun showsForYear(artistId: String, year: Int): List<Show> =
-        groupShows(search("collection:$artistId AND mediatype:etree AND year:$year", REC_FIELDS, "date asc", 2000)
+        groupShows(search("${artistScope(artistId)} AND year:$year", REC_FIELDS, "date asc", 2000)
             .map(::toRecording))
 
     fun groupShows(recs: List<Recording>): List<Show> =

@@ -7,6 +7,8 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Back returns to the top of a list**, not the row you left. Scroll position is kept; focus is not.
 - [ ] **No global taper index.** archive.org has no cheap "list all tapers" call, so Tapers is search + follow. A nightly-built index (Cloudflare Worker) would allow real A–Z browsing.
 - [ ] **Taper names are whatever the uploader typed.** "J. Smith" and "John Smith" are two tapers. Needs an alias map.
+- [ ] **Tapers Section artists are grouped by typed name.** "John Scofield" also pulls "John Scofield Band", but "Medeski Scofield Martin & Wood" shows up under four spellings. Needs a name-merge pass.
+- [ ] **The Artists home grid is Live Music Archive bands only.** Tapers Section artists only appear when you search for them.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.

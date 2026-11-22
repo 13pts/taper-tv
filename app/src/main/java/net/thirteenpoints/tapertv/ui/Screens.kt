@@ -90,7 +90,11 @@ fun ArtistGrid(artists: List<Artist>, nav: Nav, focusFirst: Boolean) {
                 Column {
                     Label(a.name, size = 16, bold = true, color = if (focused) Palette.Ink else Palette.Text)
                     Label(
-                        if (a.count > 0) "${a.count} recordings" else "Live recordings",
+                        when {
+                            a.id.startsWith(Archive.CREATOR_PREFIX) -> "${a.count} in the Tapers Section"
+                            a.count > 0 -> "${a.count} recordings"
+                            else -> "Live recordings"
+                        },
                         size = 12, color = if (focused) Palette.Ink else Palette.Dim,
                     )
                 }
@@ -108,7 +112,7 @@ fun ArtistsScreen(nav: Nav) {
     }
     Column {
         ScreenTitle("Artists", if (query.isBlank()) "Most-played bands first" else "Bands matching \"$query\"")
-        SearchField(text, { text = it }, "Find a band")
+        SearchField(text, { text = it }, "Find a band or artist")
         LoadBox(load) { list ->
             if (list.isEmpty()) Label("No bands found.", color = Palette.Dim)
             else ArtistGrid(list, nav, focusFirst = query.isBlank())

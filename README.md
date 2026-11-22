@@ -1,7 +1,7 @@
 # Taper TV
 
 A Google TV / Android TV app for the Internet Archive's [Live Music Archive](https://archive.org/details/etree):
-every band, every show, every taper. Remote-in-hand, no phone needed.
+every band, every show, every taper. It also covers the [Tapers Section](https://archive.org/details/taperssection), where artists without their own Live Music Archive collection live. Remote-in-hand, no phone needed.
 
 ![TV banner](docs/banner-preview.png)
 

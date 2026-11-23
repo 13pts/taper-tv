@@ -29,6 +29,12 @@ Every build is signed with the same key, so new builds install over old ones.
 2. Install, and allow installs from Downloader when asked.
 3. After that the app updates itself from the Home screen.
 
+## Beta channel
+
+Pushing to the `beta` branch publishes a separate rolling prerelease, tagged `beta`. It never becomes "latest".
+TVs only see it when **Beta builds** is switched on at the bottom of Home; previews then arrive through the normal Update button.
+Build numbers rise across both channels, so once a change is merged to `main` the regular build supersedes the preview.
+
 ## Build
 
 ```

@@ -20,9 +20,18 @@ import java.net.URL
  * build" is one number compared against another.
  */
 object Updater {
-    data class Update(val build: Int, val url: String)
+    data class Update(val build: Int, val url: String, val beta: Boolean = false)
 
     private const val LATEST = "https://api.github.com/repos/13pts/taper-tv/releases/latest"
+    private const val BETA = "https://api.github.com/repos/13pts/taper-tv/releases/tags/beta"
+
+    /** Whether this TV also takes preview builds from the beta channel. Off unless switched on. */
+    fun betaEnabled(context: Context): Boolean =
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("beta", false)
+
+    fun setBeta(context: Context, on: Boolean) {
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putBoolean("beta", on).apply()
+    }
     private const val UA = "TaperTV-Updater"
 
     var available by mutableStateOf<Update?>(null)
@@ -41,20 +50,26 @@ object Updater {
     suspend fun check(context: Context) {
         if (busy) return
         val found = withContext(Dispatchers.IO) {
-            runCatching {
-                val json = JSONObject(open(LATEST).inputStream.bufferedReader().use { it.readText() })
-                val build = Regex("build (\\d+)").find(json.optString("name"))?.groupValues?.get(1)?.toInt()
-                    ?: return@runCatching null
-                val assets = json.optJSONArray("assets") ?: return@runCatching null
-                val url = (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }
-                    .firstOrNull { it.optString("name").endsWith(".apk") }
-                    ?.optString("browser_download_url")
-                    ?: return@runCatching null
-                if (build > currentBuild(context)) Update(build, url) else null
-            }.getOrNull()
+            val stable = release(LATEST, beta = false)
+            val preview = if (betaEnabled(context)) release(BETA, beta = true) else null
+            // Build numbers only ever go up, across both channels, so the higher one is the newer one.
+            listOfNotNull(stable, preview).maxByOrNull { it.build }?.takeIf { it.build > currentBuild(context) }
         }
         available = found
+        if (!busy) status = ""
     }
+
+    private fun release(endpoint: String, beta: Boolean): Update? = runCatching {
+        val json = JSONObject(open(endpoint).inputStream.bufferedReader().use { it.readText() })
+        val build = Regex("build (\\d+)").find(json.optString("name"))?.groupValues?.get(1)?.toInt()
+            ?: return@runCatching null
+        val assets = json.optJSONArray("assets") ?: return@runCatching null
+        val url = (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }
+            .firstOrNull { it.optString("name").endsWith(".apk") }
+            ?.optString("browser_download_url")
+            ?: return@runCatching null
+        Update(build, url, beta)
+    }.getOrNull()
 
     suspend fun downloadAndInstall(context: Context, update: Update) {
         if (busy) return

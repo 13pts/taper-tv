@@ -45,6 +45,7 @@ fun HomeScreen(nav: Nav) {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { Updater.check(context) }
     var tileStatus by remember { mutableStateOf("") }
+    var beta by remember { mutableStateOf(Updater.betaEnabled(context)) }
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 18.dp)) {
             Image(
@@ -62,7 +63,9 @@ fun HomeScreen(nav: Nav) {
         Updater.available?.let { update ->
             Row(Modifier.padding(bottom = 14.dp)) {
                 Chip(
-                    Updater.status.ifBlank { "Update ready: build ${update.build} · install now" },
+                    Updater.status.ifBlank {
+                        (if (update.beta) "Beta update ready" else "Update ready") + ": build ${update.build} · install now"
+                    },
                     onClick = { if (!Updater.busy) scope.launch { Updater.downloadAndInstall(context, update) } },
                     selected = true,
                 )
@@ -91,6 +94,16 @@ fun HomeScreen(nav: Nav) {
             Chip(
                 "Save launcher tile to Pictures",
                 onClick = { tileStatus = TileExport.save(context) },
+            )
+            Spacer(Modifier.width(10.dp))
+            Chip(
+                if (beta) "Beta builds: on" else "Beta builds: off",
+                onClick = {
+                    beta = !beta
+                    Updater.setBeta(context, beta)
+                    scope.launch { Updater.check(context) }
+                },
+                selected = beta,
             )
             Spacer(Modifier.width(14.dp))
             Label(

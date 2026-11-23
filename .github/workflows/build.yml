@@ -3,7 +3,7 @@ name: Build APK
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, beta]
   workflow_dispatch:
 
 permissions:
@@ -33,14 +33,24 @@ jobs:
           name: taper-tv-apk
           path: taper-tv.apk
 
-      # On main, keep one rolling "latest" release so the TV always pulls the same link.
+      # Two rolling releases. "latest" is built from main and is what everyone installs.
+      # "beta" is built from the beta branch and is marked as a prerelease, so it never
+      # becomes "latest"; only TVs with Beta builds switched on in the app will see it.
       - name: Publish rolling release
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest taper-tv.apk \
-            --title "Taper TV (build ${{ github.run_number }})" \
-            --notes "Latest build from main, commit ${{ github.sha }}." \
-            --target "${{ github.sha }}"
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            TAG=latest
+            TITLE="Taper TV (build ${{ github.run_number }})"
+            NOTES="Latest build from main, commit ${{ github.sha }}."
+            FLAGS="--latest"
+          else
+            TAG=beta
+            TITLE="TaperTV beta (build ${{ github.run_number }})"
+            NOTES="Preview build from the beta branch, commit ${{ github.sha }}. Not for general use."
+            FLAGS="--prerelease --latest=false"
+          fi
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" taper-tv.apk --title "$TITLE" --notes "$NOTES" --target "${{ github.sha }}" $FLAGS

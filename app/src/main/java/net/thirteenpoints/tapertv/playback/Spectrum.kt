@@ -16,6 +16,18 @@ import kotlin.math.sqrt
 /** Latest frequency-band levels (0..1), written by the audio thread and read by the visualizer. */
 object Spectrum {
     const val BANDS = 28
+    const val WAVE = 256
+
+    /** The most recent slice of the waveform, -1..1, oldest sample first. */
+    @Volatile
+    var wave: FloatArray = FloatArray(WAVE)
+
+    /** Loudness of the left and right channels, 0..1. */
+    @Volatile
+    var levelLeft: Float = 0f
+
+    @Volatile
+    var levelRight: Float = 0f
 
     @Volatile
     var bands: FloatArray = FloatArray(BANDS)
@@ -35,6 +47,9 @@ class SpectrumSink : TeeAudioProcessor.AudioBufferSink {
     private var channels = 2
     private var rate = 44100
     private var lastRun = 0L
+    private var sumLeft = 0.0
+    private var sumRight = 0.0
+    private var sumCount = 0
     private val window = FloatArray(n) { (0.5 - 0.5 * cos(2.0 * PI * it / (n - 1))).toFloat() }
     private val re = FloatArray(n)
     private val im = FloatArray(n)
@@ -49,8 +64,19 @@ class SpectrumSink : TeeAudioProcessor.AudioBufferSink {
         val frames = samples.remaining() / channels
         for (f in 0 until frames) {
             var sum = 0f
-            for (c in 0 until channels) sum += samples.get().toFloat()
-            ring[pos] = sum / channels / 32768f
+            var left = 0f
+            var right = 0f
+            for (c in 0 until channels) {
+                val v = samples.get().toFloat() / 32768f
+                sum += v
+                if (c == 0) left = v
+                if (c == 1) right = v
+            }
+            if (channels == 1) right = left
+            sumLeft += left * left
+            sumRight += right * right
+            sumCount++
+            ring[pos] = sum / channels
             pos = (pos + 1) % n
         }
         val now = System.nanoTime()
@@ -85,7 +111,24 @@ class SpectrumSink : TeeAudioProcessor.AudioBufferSink {
             out[b] = ((db + 62f) / 56f).coerceIn(0f, 1f)
         }
         Spectrum.bands = out
+        val slice = FloatArray(Spectrum.WAVE)
+        val stride = n / Spectrum.WAVE
+        for (i in 0 until Spectrum.WAVE) slice[i] = ring[(pos + i * stride) % n]
+        Spectrum.wave = slice
+        if (sumCount > 0) {
+            Spectrum.levelLeft = loudness(sumLeft / sumCount)
+            Spectrum.levelRight = loudness(sumRight / sumCount)
+        }
+        sumLeft = 0.0
+        sumRight = 0.0
+        sumCount = 0
         Spectrum.updatedAt = now
+    }
+
+    /** Mean-square energy to a 0..1 meter reading, covering roughly -42 dB to 0 dB. */
+    private fun loudness(meanSquare: Double): Float {
+        val db = 10f * log10(max(meanSquare.toFloat(), 1e-9f))
+        return ((db + 42f) / 42f).coerceIn(0f, 1f)
     }
 
     /** In-place radix-2 FFT. */

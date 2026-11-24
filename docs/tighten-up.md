@@ -14,6 +14,7 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Updater checks only when Home opens**, and asks GitHub directly (60 checks an hour per network, plenty for one TV).
 - [ ] **Beta is one shared lane.** Only one thing can be staged at a time; staging something new replaces the last preview.
 - [ ] **Turning Beta off does not roll you back.** A TV on a beta build stays on it until a newer regular build ships.
+- [ ] **Home button lives in the bottom bar**, so from the top of a long list it is a scroll away. Holding Back is the fast way.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.

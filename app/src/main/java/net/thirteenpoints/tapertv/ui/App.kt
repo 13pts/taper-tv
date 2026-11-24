@@ -39,6 +39,16 @@ class Nav(private val stack: SnapshotStateList<Screen>) {
     }
 }
 
+/** Lets the remote's Back button, held down, ask for Home from outside the UI tree. */
+object HomeSignal {
+    var count by mutableIntStateOf(0)
+        private set
+
+    fun fire() {
+        count++
+    }
+}
+
 @Composable
 fun App(player: PlayerConnection) {
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
@@ -49,6 +59,19 @@ fun App(player: PlayerConnection) {
         val depth = stack.size
         stack.removeAt(stack.lastIndex)
         holder.removeState(depth)
+    }
+
+    // Drop every screen above Home in one go, however deep the trail got.
+    val goHome: () -> Unit = {
+        while (stack.size > 1) {
+            val depth = stack.size
+            stack.removeAt(stack.lastIndex)
+            holder.removeState(depth)
+        }
+    }
+    val homeRequests = HomeSignal.count
+    LaunchedEffect(homeRequests) {
+        if (homeRequests > 0) goHome()
     }
 
     LaunchedEffect(Unit) {
@@ -77,9 +100,19 @@ fun App(player: PlayerConnection) {
                         ScreenHost(current, nav, player)
                     }
                 }
-                if (player.hasMedia && current !is Screen.NowPlaying) {
+                val showHome = current !is Screen.Home
+                val showPlaying = player.hasMedia && current !is Screen.NowPlaying
+                if (showHome || showPlaying) {
                     Spacer(Modifier.height(10.dp))
-                    NowPlayingBar(player) { nav.go(Screen.NowPlaying) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (showHome) {
+                            Chip("⌂ Home", onClick = goHome)
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        if (showPlaying) {
+                            Box(Modifier.weight(1f)) { NowPlayingBar(player) { nav.go(Screen.NowPlaying) } }
+                        }
+                    }
                 }
             }
         }

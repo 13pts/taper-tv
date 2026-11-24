@@ -10,6 +10,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import net.thirteenpoints.tapertv.data.Artist
@@ -58,6 +60,26 @@ fun App(player: PlayerConnection) {
         }
     }
 
+    // Two idle minutes with music playing brings up the screensaver. It never starts in silence.
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(5000)
+            val idleFor = android.os.SystemClock.elapsedRealtime() - Idle.lastInput
+            if (!Idle.saver && player.isPlaying && idleFor > 120_000L && SaverMode.load(context) != SaverMode.Off) {
+                Idle.start()
+            }
+            if (Idle.saver && !player.hasMedia) Idle.stop()
+        }
+    }
+    // Hold the screen while ours is up, so the TV's own screensaver doesn't cover it.
+    val view = LocalView.current
+    val saverOn = Idle.saver
+    DisposableEffect(saverOn) {
+        view.keepScreenOn = saverOn
+        onDispose { view.keepScreenOn = false }
+    }
+
     val colors = darkColorScheme(
         primary = Palette.Gold,
         onPrimary = Palette.Ink,
@@ -68,8 +90,9 @@ fun App(player: PlayerConnection) {
     )
     MaterialTheme(colorScheme = colors) {
         Surface(Modifier.fillMaxSize(), color = Palette.Bg) {
+            if (saverOn) Screensaver(player)
             // 48 x 27 dp keeps everything inside the TV-safe area.
-            Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
+            else Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
                 val depth = stack.size
                 val current = stack[depth - 1]
                 Box(Modifier.weight(1f).fillMaxWidth()) {

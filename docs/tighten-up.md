@@ -25,6 +25,7 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Year list is first-year-to-last-year**, so a band with a hiatus shows empty years.
 - [ ] **Search field + D-pad** can be clumsy getting out of the on-screen keyboard.
 - [ ] **Signing key is checked into the repo** (sideload-only debug key). Replace before any store release.
+- [ ] **Recently Played is per TV and capped at 100 shows.** It logs a show the moment you press play, not after you've listened a while, and it doesn't sync between devices.
 - [ ] **No resume**: closing the app forgets the queue position.
 
 — Vega

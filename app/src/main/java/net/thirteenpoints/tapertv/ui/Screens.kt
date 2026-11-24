@@ -21,6 +21,7 @@ import net.thirteenpoints.tapertv.R
 import net.thirteenpoints.tapertv.data.Archive
 import net.thirteenpoints.tapertv.data.Artist
 import net.thirteenpoints.tapertv.data.Favorites
+import net.thirteenpoints.tapertv.data.History
 import net.thirteenpoints.tapertv.data.Recording
 import net.thirteenpoints.tapertv.data.Show
 import net.thirteenpoints.tapertv.data.TileExport
@@ -40,6 +41,7 @@ fun HomeScreen(nav: Nav) {
         Triple("Search", "Band, venue, city or date", Screen.Search),
         Triple("On This Day", "Shows played on today's date", Screen.OnThisDay),
         Triple("Favorites", "Your bands, tapers and shows", Screen.Favorites),
+        Triple("Recently Played", "Shows you've listened to", Screen.History),
     )
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -493,6 +495,59 @@ fun FavoritesScreen(nav: Nav) {
                 itemsIndexed(recs) { i, rec ->
                     RecordingRow(rec, onClick = { nav.go(Screen.RecordingPage(rec)) },
                         requestFocus = artists.isEmpty() && tapers.isEmpty() && i == 0)
+                }
+            }
+        }
+    }
+}
+
+// ---- Recently played -------------------------------------------------------------------
+
+/** "Today", "Yesterday", "3 days ago", then a plain date. */
+private fun playedWhen(at: Long): String {
+    val day = 24L * 60 * 60 * 1000
+    val zone = java.util.TimeZone.getDefault()
+    fun dayNumber(t: Long) = (t + zone.getOffset(t)) / day
+    val days = dayNumber(System.currentTimeMillis()) - dayNumber(at)
+    return when {
+        at <= 0L -> ""
+        days <= 0L -> "Today"
+        days == 1L -> "Yesterday"
+        days < 7L -> "$days days ago"
+        else -> java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US).format(java.util.Date(at))
+    }
+}
+
+@Composable
+fun HistoryScreen(nav: Nav) {
+    val played = History.played.toList()
+    var confirm by remember { mutableStateOf(false) }
+    Column {
+        ScreenTitle("Recently Played", "Shows played on this TV, newest first")
+        if (played.isEmpty()) {
+            Label("Nothing yet. Play a show and it lands here.", color = Palette.Dim)
+        } else {
+            LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+                itemsIndexed(played, key = { _, p -> p.recording.id }) { i, p ->
+                    val rec = p.recording
+                    RowItem(
+                        title = listOf(rec.artist, rec.date).filter { it.isNotBlank() }.joinToString(" · ")
+                            .ifBlank { rec.title },
+                        subtitle = listOf(rec.place, if (rec.taper.isBlank()) "" else "Taper: ${rec.taper}")
+                            .filter { it.isNotBlank() }.joinToString("  —  "),
+                        trailing = playedWhen(p.at),
+                        onClick = { nav.go(Screen.RecordingPage(rec)) },
+                        requestFocus = i == 0,
+                    )
+                }
+                item {
+                    Row(Modifier.padding(top = 8.dp)) {
+                        Chip(
+                            if (confirm) "Press again to clear the whole list" else "Clear list",
+                            onClick = { if (confirm) History.clear() else confirm = true },
+                            selected = confirm,
+                        )
+                    }
                 }
             }
         }

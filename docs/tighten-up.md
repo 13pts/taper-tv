@@ -18,6 +18,7 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.
+- [ ] **On This Day groups only the 300 most-played tapes** of the date, so show counts per band or year are of that slice, not the whole archive.
 - [ ] **Year list is first-year-to-last-year**, so a band with a hiatus shows empty years.
 - [ ] **Search field + D-pad** can be clumsy getting out of the on-screen keyboard.
 - [ ] **Signing key is checked into the repo** (sideload-only debug key). Replace before any store release.

@@ -39,6 +39,16 @@ class Nav(private val stack: SnapshotStateList<Screen>) {
     }
 }
 
+/** Lets the remote's Back button, held down, ask for Home from outside the UI tree. */
+object HomeSignal {
+    var count by mutableIntStateOf(0)
+        private set
+
+    fun fire() {
+        count++
+    }
+}
+
 @Composable
 fun App(player: PlayerConnection) {
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
@@ -49,6 +59,19 @@ fun App(player: PlayerConnection) {
         val depth = stack.size
         stack.removeAt(stack.lastIndex)
         holder.removeState(depth)
+    }
+
+    // Drop every screen above Home in one go, however deep the trail got.
+    val goHome: () -> Unit = {
+        while (stack.size > 1) {
+            val depth = stack.size
+            stack.removeAt(stack.lastIndex)
+            holder.removeState(depth)
+        }
+    }
+    val homeRequests = HomeSignal.count
+    LaunchedEffect(homeRequests) {
+        if (homeRequests > 0) goHome()
     }
 
     LaunchedEffect(Unit) {
@@ -69,19 +92,46 @@ fun App(player: PlayerConnection) {
     MaterialTheme(colorScheme = colors) {
         Surface(Modifier.fillMaxSize(), color = Palette.Bg) {
             // 48 x 27 dp keeps everything inside the TV-safe area.
-            Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
-                val depth = stack.size
-                val current = stack[depth - 1]
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    holder.SaveableStateProvider(depth) {
-                        ScreenHost(current, nav, player)
+            val depth = stack.size
+            val current = stack[depth - 1]
+            val showHome = current !is Screen.Home
+            Box(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
+                // The screen is composed before the rail, so a screen's own first item still
+                // gets focus first. The rail sits to its left, one Left press from any row.
+                Column(Modifier.fillMaxSize().padding(start = if (showHome) HomeRailWidth + 14.dp else 0.dp)) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        holder.SaveableStateProvider(depth) {
+                            ScreenHost(current, nav, player)
+                        }
+                    }
+                    if (player.hasMedia && current !is Screen.NowPlaying) {
+                        Spacer(Modifier.height(10.dp))
+                        NowPlayingBar(player) { nav.go(Screen.NowPlaying) }
                     }
                 }
-                if (player.hasMedia && current !is Screen.NowPlaying) {
-                    Spacer(Modifier.height(10.dp))
-                    NowPlayingBar(player) { nav.go(Screen.NowPlaying) }
-                }
+                if (showHome) HomeRail(goHome, Modifier.align(Alignment.CenterStart))
             }
+        }
+    }
+}
+
+private val HomeRailWidth = 72.dp
+
+/**
+ * Home, as a full-height strip down the left edge. Full height on purpose: wherever the
+ * remote is in a list, pressing Left lines up with it.
+ */
+@Composable
+private fun HomeRail(goHome: () -> Unit, modifier: Modifier = Modifier) {
+    FocusCard(goHome, modifier.width(HomeRailWidth).fillMaxHeight()) { focused ->
+        val color = if (focused) Palette.Ink else Palette.Dim
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Label("⌂", size = 24, color = color)
+            Label("Home", size = 12, color = color, bold = focused)
         }
     }
 }

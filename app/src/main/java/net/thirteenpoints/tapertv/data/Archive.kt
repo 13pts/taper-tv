@@ -249,6 +249,11 @@ object Archive {
             .map(::toRecording).filter { it.id.isNotBlank() }
     }
 
+    /** Every band's tapes from one year, most-played first. */
+    fun topShowsOfYear(year: Int): List<Recording> =
+        search("$LIVE AND year:$year", REC_FIELDS, "downloads desc", 300)
+            .map(::toRecording).filter { it.id.isNotBlank() }
+
     // ---- Screensaver footage ---------------------------------------------------------------
 
     // These collections also hold disaster reels and bomb tests. Nobody wants those behind a show.

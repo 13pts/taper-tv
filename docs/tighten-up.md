@@ -26,6 +26,9 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Search field + D-pad** can be clumsy getting out of the on-screen keyboard.
 - [ ] **Signing key is checked into the repo** (sideload-only debug key). Replace before any store release.
 - [ ] **Recently Played is per TV and capped at 100 shows.** It logs a show the moment you press play, not after you've listened a while, and it doesn't sync between devices.
+- [ ] **Home redesign was built from a hand sketch and a chat mock**, with no real screenshot before it shipped to beta. Spacing and focus order need a pass on a TV.
+- [ ] **Home's Artist tab shows bands 4 across; the full Artists screen still shows 3.** Two layouts for the same grid.
+- [ ] **Date tab is by year only**, top 300 tapes of that year by plays. No month or exact-date picker yet.
 - [ ] **No resume**: closing the app forgets the queue position.
 
 — Vega

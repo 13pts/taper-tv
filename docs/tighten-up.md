@@ -15,6 +15,9 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Beta is one shared lane.** Only one thing can be staged at a time; staging something new replaces the last preview.
 - [ ] **Turning Beta off does not roll you back.** A TV on a beta build stays on it until a newer regular build ships.
 - [ ] **Home rail is a plain full-height strip** on the left of every screen but Home. It works from any row; a proper TV nav drawer (Home, Search, Now Playing) would be nicer.
+- [ ] **Screensaver footage is filtered by title keywords**, not hand-picked. Odd clips will slip through; a curated list would be better.
+- [ ] **Screensaver starts after a fixed two minutes** of no remote input while music plays. No setting for the delay yet.
+- [ ] **Vintage films are cropped to fill the screen**, so 4:3 footage loses its top and bottom.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.

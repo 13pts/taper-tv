@@ -18,6 +18,7 @@ fun NowPlayingScreen(player: PlayerConnection, nav: Nav) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
     var look by remember { mutableStateOf(Look.load(context)) }
+    var saver by remember { mutableStateOf(SaverMode.load(context)) }
     // Keep the playing track in view as the show moves along.
     LaunchedEffect(player.trackIndex) {
         if (player.trackIndex >= 0) runCatching { listState.animateScrollToItem(max(0, player.trackIndex - 2)) }
@@ -69,6 +70,14 @@ fun NowPlayingScreen(player: PlayerConnection, nav: Nav) {
                 player.recordingId?.let { id ->
                     Chip("Go to show", onClick = { nav.go(Screen.RecordingPage(stub(id))) })
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Chip("Screensaver: ${saver.label}", onClick = {
+                    saver = SaverMode.values()[(saver.ordinal + 1) % SaverMode.values().size]
+                    SaverMode.save(context, saver)
+                })
+                if (saver != SaverMode.Off) Chip("Start it now", onClick = { Idle.start() })
             }
         }
         Column(Modifier.weight(0.44f).fillMaxHeight()) {

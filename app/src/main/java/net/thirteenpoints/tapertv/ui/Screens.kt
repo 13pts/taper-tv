@@ -406,15 +406,67 @@ fun SearchScreen(nav: Nav) {
     }
 }
 
+/** One collapsible group on On This Day: a band or a year, and its shows. */
+private data class DaySection(val title: String, val shows: List<ShowGroup>)
+
+private fun plays(shows: List<ShowGroup>): Long = shows.sumOf { g -> g.versions.sumOf { it.downloads } }
+
+/** Bands with the most-played tapes first; years newest first. */
+private fun daySections(recs: List<Recording>, byYear: Boolean): List<DaySection> {
+    val shows = groupByShow(recs)
+    return if (byYear) {
+        shows.groupBy { it.best.year.ifBlank { "Unknown year" } }
+            .map { (year, list) -> DaySection(year, list.sortedByDescending { plays(listOf(it)) }) }
+            .sortedWith(compareBy<DaySection> { !it.title.first().isDigit() }.thenByDescending { it.title })
+    } else {
+        shows.groupBy { it.best.artist.trim().lowercase() }
+            .map { (_, list) ->
+                DaySection(list.first().best.artist.trim().ifBlank { "Unknown artist" },
+                    list.sortedByDescending { it.best.date })
+            }
+            .sortedWith(compareByDescending<DaySection> { plays(it.shows) }.thenBy { it.title.lowercase() })
+    }
+}
+
 @Composable
 fun OnThisDayScreen(nav: Nav) {
     val load = rememberLoad("on-this-day") { Archive.onThisDay() }
+    var byYear by rememberSaveable { mutableStateOf(false) }
+    var open by rememberSaveable { mutableStateOf("") }
     Column {
-        ScreenTitle("On This Day", "Shows played on today's date, most-played first")
+        ScreenTitle("On This Day", "Shows played on today's date. Pick a band or a year to open it.")
+        Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = gap) {
+            Chip("By band", onClick = { byYear = false; open = "" }, selected = !byYear)
+            Chip("By year", onClick = { byYear = true; open = "" }, selected = byYear)
+        }
         LoadBox(load) { recs ->
             if (recs.isEmpty()) Label("Nothing in the archive for today's date.", color = Palette.Dim)
-            else LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
-                itemsIndexed(groupByShow(recs)) { i, group -> ShowGroupRow(group, nav, requestFocus = i == 0) }
+            else {
+                val sections = remember(recs, byYear) { daySections(recs, byYear) }
+                val total = sections.sumOf { it.shows.size }
+                Label("$total shows · ${sections.size} ${if (byYear) "years" else "bands"}", size = 13,
+                    color = Palette.Dim, modifier = Modifier.padding(bottom = 8.dp))
+                // One group open at a time, so the list stays a screen or two long.
+                LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+                    sections.forEachIndexed { i, section ->
+                        val isOpen = open == section.title
+                        val n = section.shows.size
+                        item {
+                            RowItem(
+                                title = section.title,
+                                onClick = { open = if (isOpen) "" else section.title },
+                                trailing = (if (n == 1) "1 show" else "$n shows") + if (isOpen) "  ▾" else "  ▸",
+                                selected = isOpen,
+                                requestFocus = i == 0,
+                            )
+                        }
+                        if (isOpen) {
+                            itemsIndexed(section.shows) { _, group ->
+                                Box(Modifier.padding(start = 28.dp)) { ShowGroupRow(group, nav) }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

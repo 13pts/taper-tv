@@ -1,14 +1,47 @@
 package net.thirteenpoints.tapertv
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import net.thirteenpoints.tapertv.data.Favorites
 import net.thirteenpoints.tapertv.playback.PlayerConnection
 import net.thirteenpoints.tapertv.ui.App
+import net.thirteenpoints.tapertv.ui.HomeSignal
 
 class MainActivity : ComponentActivity() {
     private lateinit var player: PlayerConnection
+    private var backHeld = false
+
+    // Back, tapped, goes back one screen as usual. Back, held, jumps straight Home.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.repeatCount == 0) {
+                backHeld = false
+                event.startTracking()
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            backHeld = true
+            HomeSignal.fire()
+            return true
+        }
+        return super.onKeyLongPress(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (!backHeld && !event.isCanceled) onBackPressedDispatcher.onBackPressed()
+            backHeld = false
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

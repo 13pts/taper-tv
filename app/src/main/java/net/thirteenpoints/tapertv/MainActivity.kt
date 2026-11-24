@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import net.thirteenpoints.tapertv.data.Favorites
+import net.thirteenpoints.tapertv.data.History
 import net.thirteenpoints.tapertv.playback.PlayerConnection
 import net.thirteenpoints.tapertv.ui.App
 
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Favorites.init(this)
+        History.init(this)
         player = PlayerConnection(applicationContext)
         setContent { App(player) }
     }

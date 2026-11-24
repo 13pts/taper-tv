@@ -14,6 +14,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import net.thirteenpoints.tapertv.data.History
 import net.thirteenpoints.tapertv.data.RecordingDetail
 
 /** The UI's handle on the playback service, exposed as Compose state. */
@@ -123,6 +124,7 @@ class PlayerConnection(private val context: Context) {
                 .build()
         }
         if (items.isEmpty()) return
+        History.add(rec)
         val start: () -> Unit = {
             controller?.let { c ->
                 error = null

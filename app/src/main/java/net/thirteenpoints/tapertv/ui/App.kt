@@ -24,6 +24,7 @@ sealed interface Screen {
     data object Search : Screen
     data object OnThisDay : Screen
     data object Favorites : Screen
+    data object History : Screen
     data object NowPlaying : Screen
     data class ArtistYears(val artist: Artist) : Screen
     data class Year(val artist: Artist, val year: Int) : Screen
@@ -95,6 +96,7 @@ private fun ScreenHost(screen: Screen, nav: Nav, player: PlayerConnection) {
         Screen.Search -> SearchScreen(nav)
         Screen.OnThisDay -> OnThisDayScreen(nav)
         Screen.Favorites -> FavoritesScreen(nav)
+        Screen.History -> HistoryScreen(nav)
         Screen.NowPlaying -> NowPlayingScreen(player, nav)
         is Screen.ArtistYears -> ArtistYearsScreen(screen.artist, nav)
         is Screen.Year -> YearScreen(screen.artist, screen.year, nav)

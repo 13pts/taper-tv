@@ -14,7 +14,8 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Updater checks only when Home opens**, and asks GitHub directly (60 checks an hour per network, plenty for one TV).
 - [ ] **Beta is one shared lane.** Only one thing can be staged at a time; staging something new replaces the last preview.
 - [ ] **Turning Beta off does not roll you back.** A TV on a beta build stays on it until a newer regular build ships.
-- [ ] **Home rail is a plain full-height strip** on the left of every screen but Home. It works from any row; a proper TV nav drawer (Home, Search, Now Playing) would be nicer.
+- [ ] **The rail is a plain full-height strip** on the right: Search, plus Home off the Home screen (Back dropped 2026-11-28; the remote has its own). It works from any row; a proper TV nav drawer (Home, Search, Now Playing) would be nicer.
+- [ ] **New Home works but looks rough** (Spencer on beta build 37, 2026-11-25: "still kind of ugly"). Needs a visual polish pass: spacing, type sizes, the favorites strip and tab styling.
 - [ ] **Screensaver footage is filtered by title keywords**, not hand-picked. Odd clips will slip through; a curated list would be better.
 - [ ] **Screensaver starts after a fixed two minutes** of no remote input while music plays. No setting for the delay yet.
 - [ ] **Vintage films are cropped to fill the screen**, so 4:3 footage loses its top and bottom.

@@ -3,6 +3,8 @@ package net.thirteenpoints.tapertv.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
@@ -21,6 +23,7 @@ import net.thirteenpoints.tapertv.R
 import net.thirteenpoints.tapertv.data.Archive
 import net.thirteenpoints.tapertv.data.Artist
 import net.thirteenpoints.tapertv.data.Favorites
+import net.thirteenpoints.tapertv.data.History
 import net.thirteenpoints.tapertv.data.Recording
 import net.thirteenpoints.tapertv.data.Show
 import net.thirteenpoints.tapertv.data.TileExport
@@ -32,83 +35,278 @@ private val gap = Arrangement.spacedBy(10.dp)
 
 // ---- Home ------------------------------------------------------------------------------
 
+private val homeTabs = listOf("Artist", "Taper", "Date", "On this day")
+
+private fun <T> LazyListScope.loaded(load: Load<T>?, content: LazyListScope.(T) -> Unit) {
+    when (load) {
+        null, is Load.Loading -> item { Label("Loading…", color = Palette.Dim) }
+        is Load.Err -> item { Label(load.message, color = Palette.Flame) }
+        is Load.Ok -> content(load.value)
+    }
+}
+
+/** One card in the Home favorites strip: a band, a taper or a saved show. */
+@Composable
+private fun FavCard(title: String, kind: String, requestFocus: Boolean = false, onClick: () -> Unit) {
+    FocusCard(onClick, Modifier.width(172.dp), requestFocus = requestFocus) { focused ->
+        Column {
+            Label(title, size = 15, bold = true, color = if (focused) Palette.Ink else Palette.Text)
+            Label(kind, size = 12, color = if (focused) Palette.Ink else Palette.Dim)
+        }
+    }
+}
+
+/**
+ * Home, top to bottom: favorites strip, the last three shows played, then tabs for the four
+ * ways to browse. It is one scrolling list, so a tab's content can run as long as it needs.
+ */
 @Composable
 fun HomeScreen(nav: Nav) {
-    val tiles = listOf(
-        Triple("Artists", "Every band in the archive", Screen.Artists),
-        Triple("Tapers", "Follow the people behind the mics", Screen.Tapers),
-        Triple("Search", "Band, venue, city or date", Screen.Search),
-        Triple("On This Day", "Shows played on today's date", Screen.OnThisDay),
-        Triple("Favorites", "Your bands, tapers and shows", Screen.Favorites),
-    )
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { Updater.check(context) }
-    var tileStatus by remember { mutableStateOf("") }
-    var beta by remember { mutableStateOf(Updater.betaEnabled(context)) }
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 18.dp)) {
-            Image(
-                painter = painterResource(R.mipmap.ic_launcher),
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-            )
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Label("TaperTV", size = 30, bold = true)
-                Label("The Internet Archive's Live Music Archive · build ${Updater.currentBuild(context)}",
-                    size = 14, color = Palette.Dim)
+
+    val favArtists = Favorites.artists.toList()
+    val favTapers = Favorites.tapers.toList()
+    val favShows = Favorites.recordings.toList()
+    val noFavs = favArtists.isEmpty() && favTapers.isEmpty() && favShows.isEmpty()
+    val recents = History.played.take(3)
+
+    var tab by rememberSaveable { mutableStateOf(0) }
+    var byYear by rememberSaveable { mutableStateOf(false) }
+    var open by rememberSaveable { mutableStateOf("") }
+    val artists = if (tab == 0) rememberLoad("home-artists") { Archive.topArtists() } else null
+    val today = if (tab == 3) rememberLoad("on-this-day") { Archive.onThisDay() } else null
+    val thisYear = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+
+    LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher),
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                )
+                Spacer(Modifier.width(14.dp))
+                Label("TaperTV", size = 28, bold = true)
+                Spacer(Modifier.weight(1f))
+                Updater.available?.let { update ->
+                    Chip(
+                        Updater.status.ifBlank {
+                            (if (update.beta) "Beta update" else "Update") + ": build ${update.build} · install"
+                        },
+                        onClick = { if (!Updater.busy) scope.launch { Updater.downloadAndInstall(context, update) } },
+                        selected = true,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                Chip("Settings", onClick = { nav.go(Screen.Settings) })
             }
         }
-        Updater.available?.let { update ->
-            Row(Modifier.padding(bottom = 14.dp)) {
-                Chip(
-                    Updater.status.ifBlank {
-                        (if (update.beta) "Beta update ready" else "Update ready") + ": build ${update.build} · install now"
-                    },
-                    onClick = { if (!Updater.busy) scope.launch { Updater.downloadAndInstall(context, update) } },
-                    selected = true,
+
+        // Favorites strip
+        item {
+            if (noFavs) {
+                Label("Favorites show up here. Star a band, follow a taper, or save a show.",
+                    size = 13, color = Palette.Dim, maxLines = 2)
+            } else {
+                LazyRow(horizontalArrangement = gap) {
+                    itemsIndexed(favArtists) { i, a ->
+                        FavCard(a.name, "Band", requestFocus = i == 0) { nav.go(Screen.ArtistYears(a)) }
+                    }
+                    itemsIndexed(favTapers) { i, t ->
+                        FavCard(t, "Taper", requestFocus = favArtists.isEmpty() && i == 0) { nav.go(Screen.Taper(t)) }
+                    }
+                    itemsIndexed(favShows) { i, rec ->
+                        FavCard(rec.artist.ifBlank { rec.title }, rec.date.ifBlank { "Show" },
+                            requestFocus = favArtists.isEmpty() && favTapers.isEmpty() && i == 0) {
+                            nav.go(Screen.RecordingPage(rec))
+                        }
+                    }
+                    item { FavCard("All favorites", "Open the full list") { nav.go(Screen.Favorites) } }
+                }
+            }
+        }
+
+        // Recents
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Label("Recents", size = 14, color = Palette.Dim, modifier = Modifier.weight(1f))
+                if (History.played.size > 3) Chip("See all", onClick = { nav.go(Screen.History) })
+            }
+        }
+        if (recents.isEmpty()) {
+            item { Label("Nothing played yet. Shows you play land here.", size = 13, color = Palette.Dim) }
+        } else {
+            itemsIndexed(recents, key = { _, p -> "recent-" + p.recording.id }) { i, p ->
+                val rec = p.recording
+                RowItem(
+                    title = listOf(rec.artist, rec.date, rec.place).filter { it.isNotBlank() }.joinToString(" · ")
+                        .ifBlank { rec.title },
+                    trailing = playedWhen(p.at),
+                    onClick = { nav.go(Screen.RecordingPage(rec)) },
+                    requestFocus = noFavs && i == 0,
                 )
             }
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            gridItemsIndexed(tiles) { i, tile ->
-                FocusCard(
-                    onClick = { nav.go(tile.third) },
-                    modifier = Modifier.fillMaxWidth().height(110.dp),
-                    requestFocus = i == 0,
-                ) { focused ->
-                    Column {
-                        Label(tile.first, size = 22, bold = true, color = if (focused) Palette.Ink else Palette.Text)
-                        Label(tile.second, size = 13, maxLines = 2, color = if (focused) Palette.Ink else Palette.Dim)
+
+        // Tabs
+        item {
+            Row(horizontalArrangement = gap, modifier = Modifier.padding(top = 4.dp)) {
+                homeTabs.forEachIndexed { i, name ->
+                    FocusCard(
+                        onClick = { tab = i },
+                        modifier = Modifier.weight(1f),
+                        selected = tab == i,
+                        requestFocus = noFavs && recents.isEmpty() && i == 0,
+                    ) { focused ->
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Label(name, size = 16, bold = tab == i,
+                                color = if (focused) Palette.Ink else if (tab == i) Palette.Gold else Palette.Text)
+                        }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Chip(
-                "Save launcher tile to Pictures",
-                onClick = { tileStatus = TileExport.save(context) },
-            )
-            Spacer(Modifier.width(10.dp))
-            Chip(
-                if (beta) "Beta builds: on" else "Beta builds: off",
+
+        when (tab) {
+            0 -> {
+                item { RowItem("Search every band", onClick = { nav.go(Screen.Artists) }, trailing = "▸") }
+                loaded(artists) { list ->
+                    list.chunked(4).forEach { row ->
+                        item {
+                            Row(horizontalArrangement = gap) {
+                                row.forEach { a ->
+                                    FocusCard(onClick = { nav.go(Screen.ArtistYears(a)) }, modifier = Modifier.weight(1f)) { focused ->
+                                        Column {
+                                            Label(a.name, size = 15, bold = true, color = if (focused) Palette.Ink else Palette.Text)
+                                            Label(if (a.count > 0) "${a.count} recordings" else "Live recordings",
+                                                size = 12, color = if (focused) Palette.Ink else Palette.Dim)
+                                        }
+                                    }
+                                }
+                                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
+                    }
+                }
+            }
+            1 -> {
+                item { RowItem("Search tapers by name", onClick = { nav.go(Screen.Tapers) }, trailing = "▸") }
+                if (favTapers.isEmpty()) {
+                    item {
+                        Label("You're not following any tapers yet. Open a show and hit \"More from…\" to find one.",
+                            size = 13, color = Palette.Dim, maxLines = 2)
+                    }
+                } else {
+                    itemsIndexed(favTapers) { _, name ->
+                        RowItem(name, onClick = { nav.go(Screen.Taper(name)) }, trailing = "Following")
+                    }
+                }
+            }
+            2 -> {
+                item { Label("Pick a year to see its most-played shows, every band.", size = 13, color = Palette.Dim) }
+                (thisYear downTo 1959).toList().chunked(8).forEach { row ->
+                    item {
+                        Row(horizontalArrangement = gap) {
+                            row.forEach { y ->
+                                FocusCard(onClick = { nav.go(Screen.DateYear(y)) }, modifier = Modifier.weight(1f)) { focused ->
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        Label("$y", size = 15, bold = true, color = if (focused) Palette.Ink else Palette.Text)
+                                    }
+                                }
+                            }
+                            repeat(8 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            }
+            else -> {
+                item {
+                    Row(horizontalArrangement = gap) {
+                        Chip("By band", onClick = { byYear = false; open = "" }, selected = !byYear)
+                        Chip("By year", onClick = { byYear = true; open = "" }, selected = byYear)
+                    }
+                }
+                loaded(today) { recs ->
+                    if (recs.isEmpty()) {
+                        item { Label("Nothing in the archive for today's date.", color = Palette.Dim) }
+                    } else {
+                        daySections(recs, byYear).forEach { section ->
+                            val isOpen = open == section.title
+                            val n = section.shows.size
+                            item {
+                                RowItem(
+                                    title = section.title,
+                                    onClick = { open = if (isOpen) "" else section.title },
+                                    trailing = (if (n == 1) "1 show" else "$n shows") + if (isOpen) "  ▾" else "  ▸",
+                                    selected = isOpen,
+                                )
+                            }
+                            if (isOpen) {
+                                itemsIndexed(section.shows) { _, group ->
+                                    Box(Modifier.padding(start = 28.dp)) { ShowGroupRow(group, nav) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Every band's shows from one year, most-played first. Reached from Home's Date tab. */
+@Composable
+fun DateYearScreen(year: Int, nav: Nav) {
+    val load = rememberLoad("date-year", year) { Archive.topShowsOfYear(year) }
+    Column {
+        ScreenTitle("$year", "The year's most-played shows, every band")
+        LoadBox(load) { recs ->
+            if (recs.isEmpty()) Label("Nothing in the archive for $year.", color = Palette.Dim)
+            else LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+                itemsIndexed(groupByShow(recs)) { i, group -> ShowGroupRow(group, nav, requestFocus = i == 0) }
+            }
+        }
+    }
+}
+
+/** The switches that used to sit at the bottom of Home. */
+@Composable
+fun SettingsScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var tileStatus by remember { mutableStateOf("") }
+    var beta by remember { mutableStateOf(Updater.betaEnabled(context)) }
+    var saver by remember { mutableStateOf(SaverMode.load(context)) }
+    Column {
+        ScreenTitle("Settings", "TaperTV build ${Updater.currentBuild(context)}")
+        Column(verticalArrangement = gap) {
+            RowItem(
+                "Beta builds",
+                subtitle = "Get preview builds through the Update button before everyone else.",
+                trailing = if (beta) "On" else "Off",
+                selected = beta,
+                requestFocus = true,
                 onClick = {
                     beta = !beta
                     Updater.setBeta(context, beta)
                     scope.launch { Updater.check(context) }
                 },
-                selected = beta,
             )
-            Spacer(Modifier.width(14.dp))
-            Label(
-                tileStatus.ifBlank { "For custom launchers: a transparent tile image you can set as this app's icon." },
-                size = 13, color = Palette.Dim, maxLines = 2,
+            RowItem(
+                "Screensaver",
+                subtitle = "What plays after two idle minutes of music.",
+                trailing = saver.label,
+                onClick = {
+                    saver = SaverMode.values()[(saver.ordinal + 1) % SaverMode.values().size]
+                    SaverMode.save(context, saver)
+                },
+            )
+            RowItem(
+                "Save launcher tile to Pictures",
+                subtitle = tileStatus.ifBlank { "For custom launchers: a transparent tile image you can set as this app's icon." },
+                onClick = { tileStatus = TileExport.save(context) },
             )
         }
     }
@@ -406,15 +604,67 @@ fun SearchScreen(nav: Nav) {
     }
 }
 
+/** One collapsible group on On This Day: a band or a year, and its shows. */
+private data class DaySection(val title: String, val shows: List<ShowGroup>)
+
+private fun plays(shows: List<ShowGroup>): Long = shows.sumOf { g -> g.versions.sumOf { it.downloads } }
+
+/** Bands with the most-played tapes first; years newest first. */
+private fun daySections(recs: List<Recording>, byYear: Boolean): List<DaySection> {
+    val shows = groupByShow(recs)
+    return if (byYear) {
+        shows.groupBy { it.best.year.ifBlank { "Unknown year" } }
+            .map { (year, list) -> DaySection(year, list.sortedByDescending { plays(listOf(it)) }) }
+            .sortedWith(compareBy<DaySection> { !it.title.first().isDigit() }.thenByDescending { it.title })
+    } else {
+        shows.groupBy { it.best.artist.trim().lowercase() }
+            .map { (_, list) ->
+                DaySection(list.first().best.artist.trim().ifBlank { "Unknown artist" },
+                    list.sortedByDescending { it.best.date })
+            }
+            .sortedWith(compareByDescending<DaySection> { plays(it.shows) }.thenBy { it.title.lowercase() })
+    }
+}
+
 @Composable
 fun OnThisDayScreen(nav: Nav) {
     val load = rememberLoad("on-this-day") { Archive.onThisDay() }
+    var byYear by rememberSaveable { mutableStateOf(false) }
+    var open by rememberSaveable { mutableStateOf("") }
     Column {
-        ScreenTitle("On This Day", "Shows played on today's date, most-played first")
+        ScreenTitle("On This Day", "Shows played on today's date. Pick a band or a year to open it.")
+        Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = gap) {
+            Chip("By band", onClick = { byYear = false; open = "" }, selected = !byYear)
+            Chip("By year", onClick = { byYear = true; open = "" }, selected = byYear)
+        }
         LoadBox(load) { recs ->
             if (recs.isEmpty()) Label("Nothing in the archive for today's date.", color = Palette.Dim)
-            else LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
-                itemsIndexed(groupByShow(recs)) { i, group -> ShowGroupRow(group, nav, requestFocus = i == 0) }
+            else {
+                val sections = remember(recs, byYear) { daySections(recs, byYear) }
+                val total = sections.sumOf { it.shows.size }
+                Label("$total shows · ${sections.size} ${if (byYear) "years" else "bands"}", size = 13,
+                    color = Palette.Dim, modifier = Modifier.padding(bottom = 8.dp))
+                // One group open at a time, so the list stays a screen or two long.
+                LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+                    sections.forEachIndexed { i, section ->
+                        val isOpen = open == section.title
+                        val n = section.shows.size
+                        item {
+                            RowItem(
+                                title = section.title,
+                                onClick = { open = if (isOpen) "" else section.title },
+                                trailing = (if (n == 1) "1 show" else "$n shows") + if (isOpen) "  ▾" else "  ▸",
+                                selected = isOpen,
+                                requestFocus = i == 0,
+                            )
+                        }
+                        if (isOpen) {
+                            itemsIndexed(section.shows) { _, group ->
+                                Box(Modifier.padding(start = 28.dp)) { ShowGroupRow(group, nav) }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -441,6 +691,59 @@ fun FavoritesScreen(nav: Nav) {
                 itemsIndexed(recs) { i, rec ->
                     RecordingRow(rec, onClick = { nav.go(Screen.RecordingPage(rec)) },
                         requestFocus = artists.isEmpty() && tapers.isEmpty() && i == 0)
+                }
+            }
+        }
+    }
+}
+
+// ---- Recently played -------------------------------------------------------------------
+
+/** "Today", "Yesterday", "3 days ago", then a plain date. */
+private fun playedWhen(at: Long): String {
+    val day = 24L * 60 * 60 * 1000
+    val zone = java.util.TimeZone.getDefault()
+    fun dayNumber(t: Long) = (t + zone.getOffset(t)) / day
+    val days = dayNumber(System.currentTimeMillis()) - dayNumber(at)
+    return when {
+        at <= 0L -> ""
+        days <= 0L -> "Today"
+        days == 1L -> "Yesterday"
+        days < 7L -> "$days days ago"
+        else -> java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US).format(java.util.Date(at))
+    }
+}
+
+@Composable
+fun HistoryScreen(nav: Nav) {
+    val played = History.played.toList()
+    var confirm by remember { mutableStateOf(false) }
+    Column {
+        ScreenTitle("Recently Played", "Shows played on this TV, newest first")
+        if (played.isEmpty()) {
+            Label("Nothing yet. Play a show and it lands here.", color = Palette.Dim)
+        } else {
+            LazyColumn(state = rememberLazyListState(), verticalArrangement = gap) {
+                itemsIndexed(played, key = { _, p -> p.recording.id }) { i, p ->
+                    val rec = p.recording
+                    RowItem(
+                        title = listOf(rec.artist, rec.date).filter { it.isNotBlank() }.joinToString(" · ")
+                            .ifBlank { rec.title },
+                        subtitle = listOf(rec.place, if (rec.taper.isBlank()) "" else "Taper: ${rec.taper}")
+                            .filter { it.isNotBlank() }.joinToString("  —  "),
+                        trailing = playedWhen(p.at),
+                        onClick = { nav.go(Screen.RecordingPage(rec)) },
+                        requestFocus = i == 0,
+                    )
+                }
+                item {
+                    Row(Modifier.padding(top = 8.dp)) {
+                        Chip(
+                            if (confirm) "Press again to clear the whole list" else "Clear list",
+                            onClick = { if (confirm) History.clear() else confirm = true },
+                            selected = confirm,
+                        )
+                    }
                 }
             }
         }

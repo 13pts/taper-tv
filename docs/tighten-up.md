@@ -14,12 +14,21 @@ Shortcuts taken to get v1 on the TV. None of these block using it.
 - [ ] **Updater checks only when Home opens**, and asks GitHub directly (60 checks an hour per network, plenty for one TV).
 - [ ] **Beta is one shared lane.** Only one thing can be staged at a time; staging something new replaces the last preview.
 - [ ] **Turning Beta off does not roll you back.** A TV on a beta build stays on it until a newer regular build ships.
+- [ ] **Home rail is a plain full-height strip** on the left of every screen but Home. It works from any row; a proper TV nav drawer (Home, Search, Now Playing) would be nicer.
+- [ ] **Screensaver footage is filtered by title keywords**, not hand-picked. Odd clips will slip through; a curated list would be better.
+- [ ] **Screensaver starts after a fixed two minutes** of no remote input while music plays. No setting for the delay yet.
+- [ ] **Vintage films are cropped to fill the screen**, so 4:3 footage loses its top and bottom.
 - [ ] **MP3 only.** Lossless (FLAC) toggle not built yet.
 - [ ] **Gapless depends on the MP3 derivatives.** Media3 plays the queue back to back; true sample-accurate gapless needs FLAC.
 - [ ] **On This Day is one big OR query** across every year. Untested against the live API at scale.
+- [ ] **On This Day groups only the 300 most-played tapes** of the date, so show counts per band or year are of that slice, not the whole archive.
 - [ ] **Year list is first-year-to-last-year**, so a band with a hiatus shows empty years.
 - [ ] **Search field + D-pad** can be clumsy getting out of the on-screen keyboard.
 - [ ] **Signing key is checked into the repo** (sideload-only debug key). Replace before any store release.
+- [ ] **Recently Played is per TV and capped at 100 shows.** It logs a show the moment you press play, not after you've listened a while, and it doesn't sync between devices.
+- [ ] **Home redesign was built from a hand sketch and a chat mock**, with no real screenshot before it shipped to beta. Spacing and focus order need a pass on a TV.
+- [ ] **Home's Artist tab shows bands 4 across; the full Artists screen still shows 3.** Two layouts for the same grid.
+- [ ] **Date tab is by year only**, top 300 tapes of that year by plays. No month or exact-date picker yet.
 - [ ] **No resume**: closing the app forgets the queue position.
 
 — Vega

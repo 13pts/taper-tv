@@ -13,6 +13,7 @@ every band, every show, every taper. It also covers the [Tapers Section](https:/
   newest first or by band. Every recording links to "More from <taper>".
 - **Search** by band, venue, city or date.
 - **On This Day** and **Favorites** (bands, tapers, shows), stored on the TV.
+- **Recently Played**: the last 100 shows you pressed play on, newest first, stored on the TV.
 - **Background playback**: the show keeps playing when the screen idles.
 - **Self-updating**: Home shows an "Update ready" button whenever a newer build is published.
 
@@ -49,6 +50,7 @@ Kotlin, Jetpack Compose, Media3. Networking is `HttpURLConnection` + `org.json` 
 | --- | --- |
 | `app/src/main/java/.../data/Archive.kt` | archive.org client and data models |
 | `app/src/main/java/.../data/Favorites.kt` | on-device favorites |
+| `app/src/main/java/.../data/History.kt` | on-device play history |
 | `app/src/main/java/.../playback/` | Media3 service and the UI's handle on it |
 | `app/src/main/java/.../ui/` | screens, navigation, shared components |
 | `brand/` | TaperTV cassette logo: the original (black body) and the yellow-body version the app uses on dark |

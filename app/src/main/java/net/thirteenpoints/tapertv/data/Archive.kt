@@ -49,6 +49,14 @@ data class Show(val date: String, val place: String, val sources: List<Recording
 
 data class TaperHit(val name: String, val count: Int)
 
+data class Clip(val id: String, val title: String)
+
+/** Where screensaver footage comes from. Both collections are free-to-use film on archive.org. */
+enum class VideoSet(val collection: String) {
+    Nature("stock_footage"),
+    Vintage("prelinger"),
+}
+
 /** Thin client for archive.org's public search + metadata endpoints. Blocking: call from Dispatchers.IO. */
 object Archive {
     private const val BASE = "https://archive.org"
@@ -239,6 +247,46 @@ object Archive {
         val dates = (1959..cal.get(Calendar.YEAR)).joinToString(" OR ") { "date:$it-$md" }
         return search("$LIVE AND ($dates)", REC_FIELDS, "downloads desc", 300)
             .map(::toRecording).filter { it.id.isNotBlank() }
+    }
+
+    /** Every band's tapes from one year, most-played first. */
+    fun topShowsOfYear(year: Int): List<Recording> =
+        search("$LIVE AND year:$year", REC_FIELDS, "downloads desc", 300)
+            .map(::toRecording).filter { it.id.isNotBlank() }
+
+    // ---- Screensaver footage ---------------------------------------------------------------
+
+    // These collections also hold disaster reels and bomb tests. Nobody wants those behind a show.
+    private val grim = listOf(
+        "bomb", "atomic", "nuclear", "hydrogen", "disaster", "war", "crash", "collapse", "explosion",
+        "hindenburg", "riot", "death", "dead", "kill", "nazi", "hitler", "execution", "shoot", "gun",
+        "accident", "terror", "attack", "military", "army", "weapon", "missile", "surgery", "disease",
+        "venereal", "drug", "narcotic", "murder", "funeral", "9/11", "assassin",
+    )
+    private val scenic = listOf(
+        "sky", "cloud", "star", "time lapse", "timelapse", "time-lapse", "ocean", "sea ", "water", "wave",
+        "river", "waterfall", "flame", "fire", "flower", "forest", "tree", "sunset", "sunrise", "moon",
+        "aurora", "rain", "snow", "mountain", "aquarium", "fish", "jellyfish", "space", "earth", "nebula",
+        "lava", "smoke", "ink", "lake", "beach", "garden", "bird", "butterfl", "night", "city lights", "leaves",
+    )
+
+    fun videoClips(set: VideoSet): List<Clip> =
+        search("collection:${set.collection} AND mediatype:movies", "identifier,title", "downloads desc", 400)
+            .map { Clip(it.str("identifier"), it.str("title")) }
+            .filter { clip ->
+                val t = " " + clip.title.lowercase() + " "
+                clip.id.isNotBlank() && grim.none { it in t } && (set != VideoSet.Nature || scenic.any { it in t })
+            }
+
+    /** The small streaming copy of a film, or null if the item has none. */
+    fun videoUrl(id: String): String? {
+        val files = JSONObject(get("$BASE/metadata/${Uri.encode(id)}")).optJSONArray("files") ?: return null
+        val all = (0 until files.length()).mapNotNull { files.optJSONObject(it) }
+            .filter { it.str("name").endsWith(".mp4", ignoreCase = true) }
+        val pick = all.filter { it.str("format") == "h.264" }.minByOrNull { it.str("size").toLongOrNull() ?: Long.MAX_VALUE }
+            ?: all.firstOrNull { it.str("format") == "512Kb MPEG4" }
+            ?: return null
+        return "$BASE/download/${Uri.encode(id)}/${Uri.encode(pick.str("name"), "/")}"
     }
 
     // ---- One recording -------------------------------------------------------------------

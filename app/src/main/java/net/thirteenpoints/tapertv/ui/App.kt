@@ -127,13 +127,6 @@ fun App(player: PlayerConnection) {
             val depth = stack.size
             val current = stack[depth - 1]
             val onHome = current is Screen.Home
-            val goBack: () -> Unit = {
-                if (stack.size > 1) {
-                    val d = stack.size
-                    stack.removeAt(stack.lastIndex)
-                    holder.removeState(d)
-                }
-            }
             Box(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
                 // The screen is composed before the rail, so a screen's own first item still
                 // gets focus first. The rail sits to its right, one Right press from any row.
@@ -153,7 +146,6 @@ fun App(player: PlayerConnection) {
                     showNav = !onHome,
                     onSearch = { nav.go(Screen.Search) },
                     goHome = goHome,
-                    goBack = goBack,
                     modifier = Modifier.align(Alignment.CenterEnd),
                 )
             }
@@ -165,9 +157,9 @@ fun App(player: PlayerConnection) {
 private val RailWidth = 76.dp
 
 /**
- * The strip down the right edge: Search on top, then Home and Back sharing the rest. Home and
- * Back are tall on purpose, so pressing Right from anywhere in a list lands on one of them.
- * On the Home screen itself only Search shows.
+ * The strip down the right edge: Search on top, then Home filling the rest. Home is tall on
+ * purpose, so pressing Right from anywhere in a list lands on it. On the Home screen itself only
+ * Search shows. There is no Back button: the remote has its own Back key.
  */
 @Composable
 private fun SideRail(
@@ -175,7 +167,6 @@ private fun SideRail(
     showNav: Boolean,
     onSearch: () -> Unit,
     goHome: () -> Unit,
-    goBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.width(RailWidth).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -196,7 +187,6 @@ private fun SideRail(
         }
         if (showNav) {
             RailButton("Home", goHome, Modifier.weight(1f))
-            RailButton("Back", goBack, Modifier.weight(1f))
         }
     }
 }
